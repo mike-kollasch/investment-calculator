@@ -319,8 +319,21 @@
             });
         }
         
-        // Run the calculation once on load with default values
-        document.addEventListener('DOMContentLoaded', calculateGrowth);
+// --- NEW INITIALIZATION CODE ---
+        function initCalculator() {
+            // Check if the Chart object is defined. 
+            // If it is, run the calculation. If not, wait 100ms and check again.
+            if (typeof Chart !== 'undefined') {
+                calculateGrowth();
+            } else {
+                // Wait for the library to load
+                setTimeout(initCalculator, 100);
+            }
+        }
+
+        // Start the check loop when the document structure is ready
+        document.addEventListener('DOMContentLoaded', initCalculator);
+        // --- END OF NEW INITIALIZATION CODE ---
     </script>
 
 </body>
