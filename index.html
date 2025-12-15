@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comparative Investment Growth Calculator</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        /* --- CSS for Basic Styling (Same as before, with minor tweaks) --- */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f7f9;
+            color: #333;
+        }
+        .container {
+            max-width: 850px; /* Slightly wider for better chart display */
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #0056b3;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        .input-group {
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+        label {
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="number"] {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .results {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+        .result-item {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr; /* 3 columns for label, withdrawal value, no withdrawal value */
+            padding: 8px 0;
+            border-bottom: 1px dashed #eee;
+            align-items: center;
+        }
+        .result-item:last-child {
+            border-bottom: none;
+        }
+        .result-label {
+            font-weight: bold;
+        }
+        .value-withdrawal {
+            color: #d9534f; /* Red for withdrawal case */
+            font-weight: bold;
+            text-align: right;
+        }
+        .value-no-withdrawal {
+            color: #28a745; /* Green for no withdrawal case */
+            font-weight: bold;
+            text-align: right;
+        }
+        #chartContainer {
+            margin-top: 30px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .header-row {
+            font-weight: bold;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #333;
+            margin-bottom: 10px;
+        }
+        
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Comparative Investment Growth (7% Annual Return)</h1>
+
+        <div class="input-group">
+            <label for="initialInvestment">Initial Investment ($):</label>
+            <input type="number" id="initialInvestment" value="10000" min="0">
+        </div>
+
+        <div class="input-group">
+            <label for="annualWithdrawal">Annual Withdrawal Amount ($):</label>
+            <input type="number" id="annualWithdrawal" value="500" min="0">
+        </div>
+
+        <button onclick="calculateGrowth()">Compare Growth</button>
+
+        <div class="results">
+            <h2>Projected Values</h2>
+            
+            <div class="result-item header-row">
+                <span class="result-label">Year</span>
+                <span style="color: #d9534f; text-align: right;">With Annual Withdrawal</span>
+                <span style="color: #28a745; text-align: right;">No Withdrawal</span>
+            </div>
+
+            <div class="result-item">
+                <span class="result-label">After 10 Years:</span>
+                <span class="value-withdrawal" id="value10w">...</span>
+                <span class="value-no-withdrawal" id="value10n">...</span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">After 20 Years:</span>
+                <span class="value-withdrawal" id="value20w">...</span>
+                <span class="value-no-withdrawal" id="value20n">...</span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">After 30 Years:</span>
+                <span class="value-withdrawal" id="value30w">...</span>
+                <span class="value-no-withdrawal" id="value30n">...</span>
+            </div>
+        </div>
+
+        <div id="chartContainer">
+            <canvas id="growthChart"></canvas>
+            
+        </div>
+    </div>
+
+    <script>
+        // --- JavaScript for Calculations and Chart Generation ---
+        const ANNUAL_RETURN_RATE = 0.07; // 7% annual return
+        const TOTAL_PROJECTION_YEARS = 30;
+        let growthChart; // Variable to hold the Chart.js instance
+
+        /**
+         * Calculates the investment balance after a specified number of years.
+         * @param {number} principal - The initial investment amount.
+         * @param {number} withdrawal - The amount withdrawn annually (use 0 for no withdrawal).
+         * @returns {number[]} An array of annual balances from year 0 to TOTAL_PROJECTION_YEARS.
+         */
+        function calculateAnnualBalances(principal, withdrawal) {
+            let balance = principal;
+            const balances = [principal]; // Start with Year 0 balance
+
+            for (let year = 1; year <= TOTAL_PROJECTION_YEARS; year++) {
+                // 1. Apply annual return: balance * (1 + rate)
+                balance = balance * (1 + ANNUAL_RETURN_RATE);
+                
+                // 2. Apply annual withdrawal
+                balance = balance - withdrawal;
+
+                // Stop calculation if balance drops below zero (or is near zero)
+                if (balance < 0) {
+                     balance = 0;
+                     balances.push(balance);
+                     // Fill remaining years with 0 if depleted early
+                     while (balances.length <= TOTAL_PROJECTION_YEARS) {
+                        balances.push(0);
+                     }
+                     break; 
+                }
+
+                balances.push(balance);
+            }
+            return balances;
+        }
+
+        /**
+         * Formats a number as a currency string.
+         */
+        function formatCurrency(number) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            }).format(number);
+        }
+
+        /**
+         * Main function to handle user input, calculate growth, update results, and draw the chart.
+         */
+        function calculateGrowth() {
+            // Get user input values
+            const principal = parseFloat(document.getElementById('initialInvestment').value);
+            const withdrawal = parseFloat(document.getElementById('annualWithdrawal').value);
+
+            // Simple input validation
+            if (isNaN(principal) || principal < 0 || isNaN(withdrawal) || withdrawal < 0) {
+                alert("Please enter valid, non-negative numbers for both investment and withdrawal.");
+                return;
+            }
+
+            // 1. Calculate the two scenarios
+            // Scenario 1: With the user-defined annual withdrawal
+            const balancesWithWithdrawal = calculateAnnualBalances(principal, withdrawal);
+            // Scenario 2: With NO annual withdrawal (withdrawal = 0)
+            const balancesNoWithdrawal = calculateAnnualBalances(principal, 0);
+
+            // 2. Update text output for 10, 20, and 30 years
+            const getBalanceAtYear = (balances, year) => balances[year];
+
+            // Values for 10 Years
+            document.getElementById('value10w').textContent = formatCurrency(getBalanceAtYear(balancesWithWithdrawal, 10));
+            document.getElementById('value10n').textContent = formatCurrency(getBalanceAtYear(balancesNoWithdrawal, 10));
+
+            // Values for 20 Years
+            document.getElementById('value20w').textContent = formatCurrency(getBalanceAtYear(balancesWithWithdrawal, 20));
+            document.getElementById('value20n').textContent = formatCurrency(getBalanceAtYear(balancesNoWithdrawal, 20));
+            
+            // Values for 30 Years
+            document.getElementById('value30w').textContent = formatCurrency(getBalanceAtYear(balancesWithWithdrawal, 30));
+            document.getElementById('value30n').textContent = formatCurrency(getBalanceAtYear(balancesNoWithdrawal, 30));
+            
+            // 3. Generate and update the comparative chart
+            updateChart(balancesWithWithdrawal, balancesNoWithdrawal);
+        }
+
+        /**
+         * Updates or creates the Chart.js line graph with two data sets.
+         */
+        function updateChart(balancesW, balancesN) {
+            const ctx = document.getElementById('growthChart').getContext('2d');
+            
+            // Create an array of labels for the X-axis (0, 1, 2, ..., 30)
+            const labels = Array.from({ length: TOTAL_PROJECTION_YEARS + 1 }, (_, i) => i);
+
+            // Destroy the previous chart instance if it exists
+            if (growthChart) {
+                growthChart.destroy();
+            }
+
+            // Create a new chart with two datasets
+            growthChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'With Annual Withdrawal',
+                            data: balancesW,
+                            borderColor: 'rgb(217, 83, 79)', // Reddish color
+                            backgroundColor: 'rgba(217, 83, 79, 0.5)',
+                            borderWidth: 3,
+                            tension: 0.1,
+                            fill: false, 
+                        },
+                        {
+                            label: 'No Annual Withdrawal',
+                            data: balancesN,
+                            borderColor: 'rgb(40, 167, 69)', // Greenish color
+                            backgroundColor: 'rgba(40, 167, 69, 0.5)',
+                            borderWidth: 3,
+                            tension: 0.1,
+                            fill: false, 
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: 'Comparison of Investment Value Over 30 Years'
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Year'
+                            },
+                            beginAtZero: true,
+                            max: TOTAL_PROJECTION_YEARS,
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Value ($)'
+                            },
+                            beginAtZero: true,
+                            // Format Y-axis ticks as currency
+                            ticks: {
+                                callback: function(value, index, ticks) {
+                                    return new Intl.NumberFormat('en-US', {
+                                        style: 'currency',
+                                        currency: 'USD',
+                                        maximumFractionDigits: 0
+                                    }).format(value);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Run the calculation once on load with default values
+        document.addEventListener('DOMContentLoaded', calculateGrowth);
+    </script>
+
+</body>
+</html>
