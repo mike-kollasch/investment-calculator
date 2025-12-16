@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,17 +6,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Comparative Investment Growth Calculator</title>
     <style>
-        /* --- CSS for Basic Styling (Same as before, with minor tweaks) --- */
+        * {
+            box-sizing: border-box;
+        }
         body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            padding: 10px;
             background-color: #f4f7f9;
             color: #333;
         }
         .container {
-            max-width: 850px; /* Slightly wider for better chart display */
+            max-width: 850px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 15px;
             background-color: #fff;
             border-radius: 8px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -25,6 +29,11 @@
             color: #0056b3;
             border-bottom: 2px solid #eee;
             padding-bottom: 10px;
+            font-size: 1.5rem;
+            margin-top: 0;
+        }
+        h2 {
+            font-size: 1.2rem;
         }
         .input-group {
             margin-bottom: 15px;
@@ -34,15 +43,17 @@
         label {
             margin-bottom: 5px;
             font-weight: bold;
+            font-size: 0.95rem;
         }
         input[type="number"] {
-            padding: 10px;
+            padding: 12px;
             border: 1px solid #ccc;
             border-radius: 4px;
             font-size: 16px;
+            width: 100%;
         }
         button {
-            padding: 10px 15px;
+            padding: 12px 15px;
             background-color: #007bff;
             color: white;
             border: none;
@@ -51,9 +62,14 @@
             font-size: 16px;
             transition: background-color 0.3s ease;
             margin-top: 10px;
+            width: 100%;
+            touch-action: manipulation;
         }
         button:hover {
             background-color: #0056b3;
+        }
+        button:active {
+            background-color: #004085;
         }
         .results {
             margin-top: 20px;
@@ -62,10 +78,12 @@
         }
         .result-item {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr; /* 3 columns for label, withdrawal value, no withdrawal value */
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
             padding: 8px 0;
             border-bottom: 1px dashed #eee;
             align-items: center;
+            font-size: 0.9rem;
         }
         .result-item:last-child {
             border-bottom: none;
@@ -74,43 +92,76 @@
             font-weight: bold;
         }
         .value-withdrawal {
-            color: #d9534f; /* Red for withdrawal case */
+            color: #d9534f;
             font-weight: bold;
             text-align: right;
+            word-break: break-word;
         }
         .value-no-withdrawal {
-            color: #28a745; /* Green for no withdrawal case */
+            color: #28a745;
             font-weight: bold;
             text-align: right;
+            word-break: break-word;
         }
         #chartContainer {
             margin-top: 30px;
             padding: 10px;
             border: 1px solid #ddd;
             border-radius: 4px;
+            position: relative;
+            min-height: 300px;
+        }
+        #chartContainer canvas {
+            max-width: 100%;
+            height: auto !important;
         }
         .header-row {
             font-weight: bold;
             padding-bottom: 5px;
             border-bottom: 2px solid #333;
             margin-bottom: 10px;
+            font-size: 0.85rem;
         }
-        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        @media (max-width: 600px) {
+            .container {
+                padding: 10px;
+            }
+            h1 {
+                font-size: 1.3rem;
+            }
+            .result-item {
+                font-size: 0.85rem;
+            }
+            .header-row {
+                font-size: 0.8rem;
+            }
+        }
     </style>
 </head>
 <body>
-
     <div class="container">
         <h1>Comparative Investment Growth (7% Annual Return)</h1>
 
         <div class="input-group">
             <label for="initialInvestment">Initial Investment ($):</label>
-            <input type="number" id="initialInvestment" value="10000" min="0">
+            <input type="number" id="initialInvestment" value="10000" min="0" inputmode="decimal">
         </div>
 
         <div class="input-group">
             <label for="annualWithdrawal">Annual Withdrawal Amount ($):</label>
-            <input type="number" id="annualWithdrawal" value="500" min="0">
+            <input type="number" id="annualWithdrawal" value="500" min="0" inputmode="decimal">
         </div>
 
         <button onclick="calculateGrowth()">Compare Growth</button>
@@ -120,7 +171,7 @@
             
             <div class="result-item header-row">
                 <span class="result-label">Year</span>
-                <span style="color: #d9534f; text-align: right;">With Annual Withdrawal</span>
+                <span style="color: #d9534f; text-align: right;">With Withdrawal</span>
                 <span style="color: #28a745; text-align: right;">No Withdrawal</span>
             </div>
 
@@ -142,116 +193,94 @@
         </div>
 
         <div id="chartContainer">
-            <canvas id="growthChart"></canvas>
-            
+            <div class="loading" id="chartLoading">Loading chart...</div>
+            <canvas id="growthChart" style="display:none;"></canvas>
         </div>
     </div>
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script>
-        // --- JavaScript for Calculations and Chart Generation ---
-        const ANNUAL_RETURN_RATE = 0.07; // 7% annual return
+        const ANNUAL_RETURN_RATE = 0.07;
         const TOTAL_PROJECTION_YEARS = 30;
-        let growthChart; // Variable to hold the Chart.js instance
+        let growthChart;
+        let chartLibraryLoaded = false;
+        let loadAttempts = 0;
+        const MAX_LOAD_ATTEMPTS = 50; // 5 seconds max wait time
 
-        /**
-         * Calculates the investment balance after a specified number of years.
-         * @param {number} principal - The initial investment amount.
-         * @param {number} withdrawal - The amount withdrawn annually (use 0 for no withdrawal).
-         * @returns {number[]} An array of annual balances from year 0 to TOTAL_PROJECTION_YEARS.
-         */
         function calculateAnnualBalances(principal, withdrawal) {
             let balance = principal;
-            const balances = [principal]; // Start with Year 0 balance
+            const balances = [principal];
 
             for (let year = 1; year <= TOTAL_PROJECTION_YEARS; year++) {
-                // 1. Apply annual return: balance * (1 + rate)
                 balance = balance * (1 + ANNUAL_RETURN_RATE);
-                
-                // 2. Apply annual withdrawal
                 balance = balance - withdrawal;
 
-                // Stop calculation if balance drops below zero (or is near zero)
                 if (balance < 0) {
-                     balance = 0;
-                     balances.push(balance);
-                     // Fill remaining years with 0 if depleted early
-                     while (balances.length <= TOTAL_PROJECTION_YEARS) {
+                    balance = 0;
+                    balances.push(balance);
+                    while (balances.length <= TOTAL_PROJECTION_YEARS) {
                         balances.push(0);
-                     }
-                     break; 
+                    }
+                    break;
                 }
-
                 balances.push(balance);
             }
             return balances;
         }
 
-        /**
-         * Formats a number as a currency string.
-         */
         function formatCurrency(number) {
             return new Intl.NumberFormat('en-US', {
                 style: 'currency',
                 currency: 'USD',
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0,
             }).format(number);
         }
 
-        /**
-         * Main function to handle user input, calculate growth, update results, and draw the chart.
-         */
         function calculateGrowth() {
-            // Get user input values
             const principal = parseFloat(document.getElementById('initialInvestment').value);
             const withdrawal = parseFloat(document.getElementById('annualWithdrawal').value);
 
-            // Simple input validation
             if (isNaN(principal) || principal < 0 || isNaN(withdrawal) || withdrawal < 0) {
                 alert("Please enter valid, non-negative numbers for both investment and withdrawal.");
                 return;
             }
 
-            // 1. Calculate the two scenarios
-            // Scenario 1: With the user-defined annual withdrawal
             const balancesWithWithdrawal = calculateAnnualBalances(principal, withdrawal);
-            // Scenario 2: With NO annual withdrawal (withdrawal = 0)
             const balancesNoWithdrawal = calculateAnnualBalances(principal, 0);
 
-            // 2. Update text output for 10, 20, and 30 years
             const getBalanceAtYear = (balances, year) => balances[year];
 
-            // Values for 10 Years
             document.getElementById('value10w').textContent = formatCurrency(getBalanceAtYear(balancesWithWithdrawal, 10));
             document.getElementById('value10n').textContent = formatCurrency(getBalanceAtYear(balancesNoWithdrawal, 10));
 
-            // Values for 20 Years
             document.getElementById('value20w').textContent = formatCurrency(getBalanceAtYear(balancesWithWithdrawal, 20));
             document.getElementById('value20n').textContent = formatCurrency(getBalanceAtYear(balancesNoWithdrawal, 20));
             
-            // Values for 30 Years
             document.getElementById('value30w').textContent = formatCurrency(getBalanceAtYear(balancesWithWithdrawal, 30));
             document.getElementById('value30n').textContent = formatCurrency(getBalanceAtYear(balancesNoWithdrawal, 30));
             
-            // 3. Generate and update the comparative chart
             updateChart(balancesWithWithdrawal, balancesNoWithdrawal);
         }
 
-        /**
-         * Updates or creates the Chart.js line graph with two data sets.
-         */
         function updateChart(balancesW, balancesN) {
-            const ctx = document.getElementById('growthChart').getContext('2d');
+            if (!chartLibraryLoaded) {
+                document.getElementById('chartLoading').innerHTML = '<div class="error">Chart library still loading. Please wait a moment and try again.</div>';
+                return;
+            }
+
+            const canvas = document.getElementById('growthChart');
+            const ctx = canvas.getContext('2d');
             
-            // Create an array of labels for the X-axis (0, 1, 2, ..., 30)
+            canvas.style.display = 'block';
+            document.getElementById('chartLoading').style.display = 'none';
+            
             const labels = Array.from({ length: TOTAL_PROJECTION_YEARS + 1 }, (_, i) => i);
 
-            // Destroy the previous chart instance if it exists
             if (growthChart) {
                 growthChart.destroy();
             }
 
-            // Create a new chart with two datasets
             growthChart = new Chart(ctx, {
                 type: 'line',
                 data: {
@@ -260,52 +289,95 @@
                         {
                             label: 'With Annual Withdrawal',
                             data: balancesW,
-                            borderColor: 'rgb(217, 83, 79)', // Reddish color
-                            backgroundColor: 'rgba(217, 83, 79, 0.5)',
-                            borderWidth: 3,
+                            borderColor: 'rgb(217, 83, 79)',
+                            backgroundColor: 'rgba(217, 83, 79, 0.1)',
+                            borderWidth: 2,
                             tension: 0.1,
-                            fill: false, 
+                            fill: false,
+                            pointRadius: 0,
+                            pointHoverRadius: 4,
                         },
                         {
                             label: 'No Annual Withdrawal',
                             data: balancesN,
-                            borderColor: 'rgb(40, 167, 69)', // Greenish color
-                            backgroundColor: 'rgba(40, 167, 69, 0.5)',
-                            borderWidth: 3,
+                            borderColor: 'rgb(40, 167, 69)',
+                            backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                            borderWidth: 2,
                             tension: 0.1,
-                            fill: false, 
+                            fill: false,
+                            pointRadius: 0,
+                            pointHoverRadius: 4,
                         }
                     ]
                 },
                 options: {
                     responsive: true,
+                    maintainAspectRatio: true,
+                    aspectRatio: 1.5,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
                     plugins: {
                         legend: {
                             position: 'top',
+                            labels: {
+                                padding: 10,
+                                font: {
+                                    size: 11
+                                }
+                            }
                         },
                         title: {
                             display: true,
-                            text: 'Comparison of Investment Value Over 30 Years'
+                            text: 'Investment Value Over 30 Years',
+                            font: {
+                                size: 14
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    label += formatCurrency(context.parsed.y);
+                                    return label;
+                                }
+                            }
                         }
                     },
                     scales: {
                         x: {
                             title: {
                                 display: true,
-                                text: 'Year'
+                                text: 'Year',
+                                font: {
+                                    size: 11
+                                }
                             },
-                            beginAtZero: true,
-                            max: TOTAL_PROJECTION_YEARS,
+                            ticks: {
+                                maxTicksLimit: 10,
+                                font: {
+                                    size: 10
+                                }
+                            }
                         },
                         y: {
                             title: {
                                 display: true,
-                                text: 'Value ($)'
+                                text: 'Value ($)',
+                                font: {
+                                    size: 11
+                                }
                             },
                             beginAtZero: true,
-                            // Format Y-axis ticks as currency
                             ticks: {
-                                callback: function(value, index, ticks) {
+                                font: {
+                                    size: 10
+                                },
+                                callback: function(value) {
                                     return new Intl.NumberFormat('en-US', {
                                         style: 'currency',
                                         currency: 'USD',
@@ -318,23 +390,27 @@
                 }
             });
         }
-        
-// --- NEW INITIALIZATION CODE ---
-        function initCalculator() {
-            // Check if the Chart object is defined. 
-            // If it is, run the calculation. If not, wait 100ms and check again.
+
+        function checkChartLibrary() {
+            loadAttempts++;
+            
             if (typeof Chart !== 'undefined') {
+                chartLibraryLoaded = true;
+                document.getElementById('chartLoading').textContent = 'Chart ready!';
                 calculateGrowth();
+            } else if (loadAttempts < MAX_LOAD_ATTEMPTS) {
+                setTimeout(checkChartLibrary, 100);
             } else {
-                // Wait for the library to load
-                setTimeout(initCalculator, 100);
+                document.getElementById('chartLoading').innerHTML = 
+                    '<div class="error">Chart library failed to load. Please check your internet connection and refresh the page.</div>';
             }
         }
 
-        // Start the check loop when the document structure is ready
-        document.addEventListener('DOMContentLoaded', initCalculator);
-        // --- END OF NEW INITIALIZATION CODE ---
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', checkChartLibrary);
+        } else {
+            checkChartLibrary();
+        }
     </script>
-
 </body>
 </html>
